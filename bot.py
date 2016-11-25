@@ -16,17 +16,26 @@
 
 import os
 import tweepy
-from secrets import *
+from random import randint
 from time import gmtime, strftime, sleep, time
+from secrets import *
+from sentences import *
 
 #Twitter authentication
-auth = tweepy.OAuthHandler(API_Key, API_Secret)  
-auth.set_access_token(Access_Token, Access_Token_Secret)  
-api = tweepy.API(auth) 
+auth = tweepy.OAuthHandler(API_Key, API_Secret)
+auth.set_access_token(Access_Token, Access_Token_Secret)
+api = tweepy.API(auth)
 
 #Set up logging
 bot_username = 'ELHTOOracle'
 logfile_name = bot_username + '.log'
+
+#Log tweets
+def log(tweet):
+    path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+    with open(os.path.join(path, logfile_name), 'a+') as log_file:
+        current_time = strftime('%d %b %Y %H:%M:%S', gmtime())
+        log_file.write('\n' + current_time + ' ' + tweet)
 
 # Send the tweet and log success or failure
 def tweet(text):
@@ -37,35 +46,14 @@ def tweet(text):
     else:
         log('Tweeted: ' + text)
 
-#Log tweets
-def log(tweet):
-    path = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    with open(os.path.join(path, logfile_name), 'a+') as log_file:
-        current_time = strftime('%d %b %Y %H:%M:%S', gmtime())
-        log_file.write('\n' + current_time + ' ' + tweet)
-
-
-#Just a list of test sentences. Still have to write a few lines to parse the text file from the publisher.
-sentences = [
-['1/3 People face disappointment when things don’t turn out as expected.',
-'2/3 You can’t have everything you dream for.',
-'3/3 High hopes. Failed expectations.'],
-
-['1/2 You need to be direct and say what you want/need or else people will take advantage of you and ruin everything.',
-'2/2 It’s hard to know what to say when you’re invaded by car wash men.'],
-
-['Can an internet Elvis be a decent substitute for a real life Elvis? Things don’t always go as planned and this is disappointing.'],
-
-['1/3 Some objects are seen as more special than others. What makes them special, though?',
-'2/3 Things become valuable and get treated differently when they’re called works of art or one-of-a-kind.',
-'3/3 But does it matter where your spoon came from?'],
-]
-
 hash = '#ELHTO'
+fresh = range(len(sentences))
 
 #This is where the magic happens
 def tweet_fortunes():
-    for fortune in sentences:
+    if len(fresh) > 0:
+        pick = fresh.pop(randint(0, len(fresh)-1))
+        fortune = sentences[pick]
         if len(fortune) == 1:
             tweet(fortune[0] + ' ' + hash)
         else:
@@ -76,20 +64,52 @@ def tweet_fortunes():
                 else:
                     tweet(phrase + ' ' + hash)
         sleep(300)
+    else:
+        pick = randint(0, len(sentences)-1)
+        fortune = sentences[pick]
+        if len(fortune) == 1:
+            tweet(fortune[0] + ' ' + hash)
+        else:
+            for phrase in fortune:
+                if fortune.index(phrase) != (len(fortune) -1):
+                    tweet(phrase)
+                    sleep(45)
+                else:
+                    tweet(phrase + ' ' + hash)
+        fresh = range(len(sentences))
+        fresh.pop(pick)
+        sleep(300)
 
 #Find followers and follow them back
 def follow_back():
     for follower in api.followers():
         api.create_friendship(follower.id)
-        
+
 #Send a greeting to new followers via direct message,
 #checking to ensure they've not already been greeted.
 def greet():
     greeted = [message.recipient.id for message in api.sent_direct_messages()]
     for follower in api.followers():
         if follower.id not in greeted:
-            api.send_direct_message(follower.id, text = 'I\'ve just learned about how to follow people who follow me... Oh, and about DMing. I only send this note once.')
+            api.send_direct_message(follower.id, text = 'Hi! Thanks for following me. I\'m going to tweet a fortune for you in about 10 minutes, unless you message me back and say "NO THANKS.".')
 
-#tweet_fortunes()
+#Check to see if followers who have been greeted have declined a fortune.
+def check():
+    greeted = [message.recipient.id for message in api.sent_direct_messages()]
+    responded = [message.sender.id for message in api.direct_messages()]
+    for follower in api.followers():
+        if follower.id in greeted:
+            if follower.id in responded:
+                # regex check for 'no thanks' in message and follower.id not in tweeted file
+                    # tweet fortune at follower
+                    # add @handle to tweeted file
+                    # sleep(600)
+                print message
+
+
+
+
 #follow_back()
-#greet()
+# greet()
+check()
+#tweet_fortunes()
